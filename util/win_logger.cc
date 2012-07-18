@@ -34,6 +34,7 @@ void WinLogger::Logv(const char* format, va_list ap) {
     // GetSystemTime returns UTC time, we want local time!
     ::GetLocalTime(&st);
 
+#ifdef _MSC_VER
     p += _snprintf_s(p, limit - p, _TRUNCATE,
       "%04d/%02d/%02d-%02d:%02d:%02d.%03d %llx ",
       st.wYear,
@@ -44,6 +45,22 @@ void WinLogger::Logv(const char* format, va_list ap) {
       st.wSecond,
       st.wMilliseconds,
       static_cast<long long unsigned int>(thread_id));
+#else
+#ifdef __MINGW32__
+    p += snprintf(p, limit - p,
+      "%04d/%02d/%02d-%02d:%02d:%02d.%03d %llx ",
+      st.wYear,
+      st.wMonth,
+      st.wDay,
+      st.wHour,
+      st.wMinute,
+      st.wSecond,
+      st.wMilliseconds,
+      static_cast<long long unsigned int>(thread_id));
+#else
+#error Unable to detect Windows compiler (neither _MSC_VER nor __MINGW32__ are set)
+#endif
+#endif
 
     // Print the message
     if (p < limit) {

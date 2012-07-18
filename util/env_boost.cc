@@ -4,7 +4,7 @@
 
 #include <deque>
 
-#ifdef WIN32
+#ifdef LEVELDB_PLATFORM_WINDOWS
 #include <windows.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -37,7 +37,7 @@
 #include "leveldb/env.h"
 #include "leveldb/slice.h"
 
-#ifdef WIN32
+#ifdef LEVELDB_PLATFORM_WINDOWS
 #include "util/win_logger.h"
 #else
 #include "util/posix_logger.h"
@@ -103,8 +103,8 @@ class PosixSequentialFile: public SequentialFile {
 
   virtual Status Read(size_t n, Slice* result, char* scratch) {
   Status s;
-#ifdef BSD
-  // fread_unlocked doesn't exist on FreeBSD
+#if defined(BSD) || defined(__MINGW32__)
+  // fread_unlocked doesn't exist on FreeBSD or MingW
   size_t r = fread(scratch, 1, n, file_);
 #else
   size_t r = fread_unlocked(scratch, 1, n, file_);
@@ -143,7 +143,7 @@ class PosixRandomAccessFile: public RandomAccessFile {
   virtual Status Read(uint64_t offset, size_t n, Slice* result,
             char* scratch) const {
     Status s;
-#ifdef WIN32
+#ifdef LEVELDB_PLATFORM_WINDOWS
     // no pread on Windows so we emulate it with a mutex
     boost::unique_lock<boost::mutex> lock(mu_);
 
@@ -267,7 +267,7 @@ class PosixEnv : public Env {
 
   virtual Status NewRandomAccessFile(const std::string& fname,
                    RandomAccessFile** result) {
-#ifdef WIN32
+#ifdef LEVELDB_PLATFORM_WINDOWS
     int fd = _open(fname.c_str(), _O_RDONLY | _O_RANDOM | _O_BINARY);
 #else
     int fd = open(fname.c_str(), O_RDONLY);
@@ -451,7 +451,7 @@ class PosixEnv : public Env {
     return Status::OK();
   }
 
-#ifndef WIN32
+#ifndef LEVELDB_PLATFORM_WINDOWS
   static uint64_t gettid() {
     pthread_t tid = pthread_self();
     uint64_t thread_id = 0;
@@ -466,7 +466,7 @@ class PosixEnv : public Env {
     *result = NULL;
     return Status::IOError(fname, strerror(errno));
   } else {
-#ifdef WIN32
+#ifdef LEVELDB_PLATFORM_WINDOWS
     *result = new WinLogger(f);
 #else
     *result = new PosixLogger(f, &PosixEnv::gettid);
